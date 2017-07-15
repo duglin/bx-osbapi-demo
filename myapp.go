@@ -5,25 +5,27 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 )
 
 func getData() string {
 	name, _ := os.Hostname()
 
 	result := "<h2>Hostname: " + name + "</h2>\n"
-	result += "<h2>Environment Variables</h2>\n<pre style=\"white-space:pre-wrap\">\n"
+	result += "<h2>Environment Variables</h2>\n"
+	result += "<pre style=\"white-space:pre-wrap\">\n"
 
-	keys := sort.StringSlice(os.Environ())
-	keys.Sort()
-	for _, env := range keys {
-		env1 := ""
-		for _, ch := range env {
-			if ch < ' ' {
-				continue
+	// Sort envs vars and remove non-printable chars - just to make sure
+	// each var is on its own line and only one line. Makes grep'ing easier.
+	vars := sort.StringSlice(os.Environ())
+	vars.Sort()
+	for _, env := range vars {
+		result += strings.Map(func(r rune) rune {
+			if r < ' ' {
+				return -1
 			}
-			env1 += string(ch)
-		}
-		result += env1 + "\n"
+			return r
+		}, env) + "\n"
 	}
 
 	result += "</pre>"
@@ -43,7 +45,8 @@ func main() {
 		port = os.Args[1]
 	}
 
-	fmt.Printf("Will show:\n%s\nListening on: %s:%s\n", getData(), addr, port)
+	fmt.Printf("Will show:\n==========\n%s\n==========\n\n", getData())
+	fmt.Printf("Listening on: %s:%s\n", addr, port)
 
 	http.HandleFunc("/stop", func(w http.ResponseWriter, r *http.Request) {
 		os.Exit(0)

@@ -19,9 +19,9 @@ if [[ "${useSaved}" != "" && "${useSaved}" != "2" && ! -e "${saveTar}" ]]; then
 	exit 1
 fi
 
-# if [[ "${save}" != "" ]]; then
-# 	rm -f "${saveTar}"
-# fi
+if [[ "${save}" != "" && "${useSaved}" == "" ]]; then
+	rm -f "${saveTar}"
+fi
 
 function myscript() {
     if [[ "$(uname)" == Darwin ]]; then
