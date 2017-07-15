@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: svcdemo-pod
+  labels:
+    app: svcdemo
+spec:
+  containers:
+  - name: svcdemo
+    image: registry.ng.bluemix.net/dugs/svcdemo
+    env:
+      - name: CREDS
+        valueFrom:
+          secretKeyRef:
+            name: binding-cloudant
+            key: binding
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svcdemo
+spec:
+  ports:
+    - name: svcdemo
+      port: 80
+      protocol: TCP
+      nodePort: 30888
+  selector:
+    app: svcdemo
+  type: NodePort

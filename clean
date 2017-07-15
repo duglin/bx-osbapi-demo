@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -x
+
+export KUBECONFIG=/root/.bluemix/plugins/container-service/clusters/bx-osbapi-demo/kube-config-prod-dal10-bx-osbapi-demo.yml
+
+# Docker
+export DOCKER_CERT_PATH=/root/.ice/certs/containers-api.ng.bluemix.net/be715851-daed-4483-97a3-632ce6f2dded
+export DOCKER_HOST=tcp://containers-api.ng.bluemix.net:8443
+export DOCKER_TLS_VERIFY=1
+
+docker ps
+bx ic ips
+
+for i in $(bx ic ips -q); do
+	bx ic ip-unbind $i svcdemo
+	bx ic ip-release $i
+done
+
+docker rm -f svcdemo
+
+# CF stuff
+bx service unbind cloudant svcdemo
+bx app delete -f svcdemo
+bx cf delete-route -f -n svcdemo mybluemix.net
+
+# Kube
+kubectl delete -f svcdemo.yaml
+kubectl delete secret binding-cloudant
+
+bx service keys cloudant
+for i in $(bx service keys cloudant | grep -e CCS -e kube); do
+	bx service key-delete -f cloudant $i
+done
+
+# Cloudant
+bx service delete -f cloudant
+
+# Misc
+rm -f myapp out cmds

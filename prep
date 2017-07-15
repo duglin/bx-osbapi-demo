@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# bx login -a https://api.eu-de.bluemix.net --sso
+# bx login --sso
+# bx cs init
+# bx cr login
+# us-south ??
+
+REG=registry.ng.bluemix.net
+CLUSTER=bx_osbapi_demo
+CRNS=$CLUSTER
+
+source $(which demoscript)
+set -e
+
+# Prep Kube
+######################################################################
+comment Get our Kube cluster ready
+
+# when you run this script the first time remove the --usesaved flag so
+# it can create the cluster and save the output (use SAVE=1 too)
+# doit --usesaved bx cs cluster-create --name ${CLUSTER}
+
+doit bx api
+doit bx cs api
+doit --usesaved --ignorerc bx cs cluster-create --name ${CLUSTER}
+doit bx cs workers ${CLUSTER}
+
+comment Waiting for cluster to provision...
+wait "bx cs workers ${CLUSTER} | grep -e normal -e deployed -e bootstrapping"
+
+doit bx cr namespace-add ${CRNS}   # --usesaved
+
+rm -f out cmds

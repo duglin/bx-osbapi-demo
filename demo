@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Run "prep" to setup the Kube cluster in advance since that could take
+# some time.
+
+REG=registry.ng.bluemix.net
+CLUSTER=bx_osbapi_demo
+CRNS=$CLUSTER
+
+#source $(which demoscript)
+source ./demoscript
+set -e
+
+# Build our demo app if needed
+######################################################################
+comment First, let\'s build our app and create a Docker image for it
+# Note we build it locally, then push to Bluemix
+export DOCKER_CERT_PATH=$HOME/.ice/certs/containers-api.ng.bluemix.net/be715851-daed-4483-97a3-632ce6f2dded
+DOCKER_HOST=
+DOCKER_TLS_VERIFY=
+
+doit make
+doit docker build -t ${REG}/${CRNS}/svcdemo .
+doit docker push ${REG}/${CRNS}/svcdemo
+
+# Ask for the service we're going to use
+######################################################################
+comment First create a new instance of a Cloudant Service
+doit bx service create cloudantNoSQLDB Lite cloudant
+doit --grep="-v delete" bx service list
+
+# Docker
+######################################################################
+comment Now create a Docker container and binding it to this service
+# doit export DOCKER_HOST=tcp://containers-api.ng.bluemix.net:8443
+export DOCKER_HOST=tcp://containers-api.ng.bluemix.net:8443
+export DOCKER_TLS_VERIFY=1
+doit docker run --name svcdemo -d -p 80:80 -e "CCS_BIND_SRV=cloudant" ${REG}/${CRNS}/svcdemo
+doit bx ic ip-request
+IP=$(cat out | grep IP | sed 's/.*"\([0-9\.]*\)".*/\1/')
+doit bx ic ip-bind $IP svcdemo
+unset DOCKER_HOST
+unset DOCKER_TLS_VERIFY
+
+comment Wait for the networking to be setup
+wait "curl -s http://$IP | grep VCAP_SERVICES="
+
+comment In a browser go to: http://$IP
+doit "curl -s http://$IP | grep VCAP_SERVICES="
+
+# CF
+######################################################################
+scroll manifest.yaml
+scroll Procfile
+doit cf push
+# doit bx app push
+# doit bx app push svcdemo -c './myapp' -b binary-buildpack
+
+comment wait for networking to finish...
+wait curl -s http://svcdemo.mybluemix.net \| grep VCAP_SERVICES
+
+comment In a browser go to: http://svcdemo.mybluemix.net
+doit curl -s http://svcdemo.mybluemix.net \| grep VCAP_SERVICES
+
+# Kube
+######################################################################
+export KUBECONFIG=$HOME/.bluemix/plugins/container-service/clusters/${CLUSTER}/kube-config-hou02-${CLUSTER}.yml
+comment Grab our config info first
+doit --ignorerc bx cs cluster-config ${CLUSTER}
+config=$(grep export out) || true
+doit --noexec $config
+eval $config
+
+comment First show we have no \'cloudant\' secret
+doit kubectl get secrets
+doit bx cs cluster-service-bind bx_osbapi_demo default cloudant
+doit kubectl get secrets
+scroll svcdemo.yaml
+doit kubectl create -f svcdemo.yaml
+doit kubectl get all
+
+comment Wait for svc to be ready
+wait "kubectl get pods | grep svcdemo-pod | grep 1/1"
+
+doit kubectl get nodes
+nodeIP=$(cat out | grep Ready | sed "s/ .*//")
+comment In a browser go to: http://${nodeIP}:30888
+doit curl -s http://${nodeIP}:30888 \| grep CREDS
+
+rm -f out cmds

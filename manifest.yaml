@@ -1,0 +1,7 @@
+---
+applications:
+- name: svcdemo
+  buildpack: binary_buildpack
+  memory: 256M
+  services:
+    - cloudant
