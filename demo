@@ -20,14 +20,16 @@ DOCKER_HOST=
 DOCKER_TLS_VERIFY=
 
 doit make
+doit --ignorerc --post="stdbuf -oL cut -c -$(tput cols)" timeout 1 ./myapp
 doit docker build -t ${REG}/${CRNS}/svcdemo .
 doit docker push ${REG}/${CRNS}/svcdemo
 
 # Ask for the service we're going to use
 ######################################################################
+doit --post="cut -c -$(tput cols)" bx service offerings
 comment First create a new instance of a Cloudant Service
 doit bx service create cloudantNoSQLDB Lite cloudant
-doit --grep="-v delete" bx service list
+doit --post="grep -v delete" bx service list
 
 # Docker
 ######################################################################
@@ -50,11 +52,13 @@ doit "curl -s http://$IP | grep VCAP_SERVICES="
 
 # CF
 ######################################################################
+comment Now deploy a CF app and bind the service instance to it
 scroll manifest.yaml
-scroll Procfile
+# scroll Procfile
 doit cf push
-# doit bx app push
-# doit bx app push svcdemo -c './myapp' -b binary-buildpack
+# doit cf push svcdemo -c './myapp' -b binary_buildpack
+# doit cf bind-service svcdemo cloudant
+# doit cf restart svcdemo
 
 comment wait for networking to finish...
 wait curl -s http://svcdemo.mybluemix.net \| grep VCAP_SERVICES
@@ -64,12 +68,9 @@ doit curl -s http://svcdemo.mybluemix.net \| grep VCAP_SERVICES
 
 # Kube
 ######################################################################
+comment And finally do the same with Kubernetes
 export KUBECONFIG=$HOME/.bluemix/plugins/container-service/clusters/${CLUSTER}/kube-config-hou02-${CLUSTER}.yml
-comment Grab our config info first
-doit --ignorerc bx cs cluster-config ${CLUSTER}
-config=$(grep export out) || true
-doit --noexec $config
-eval $config
+eval $(cat config)
 
 comment First show we have no \'cloudant\' secret
 doit kubectl get secrets
@@ -77,13 +78,12 @@ doit bx cs cluster-service-bind bx_osbapi_demo default cloudant
 doit kubectl get secrets
 scroll svcdemo.yaml
 doit kubectl create -f svcdemo.yaml
-doit kubectl get all
+doit kubectl get pods,services
 
 comment Wait for svc to be ready
 wait "kubectl get pods | grep svcdemo-pod | grep 1/1"
 
-doit kubectl get nodes
-nodeIP=$(cat out | grep Ready | sed "s/ .*//")
+nodeIP=$(cat nodeip)
 comment In a browser go to: http://${nodeIP}:30888
 doit curl -s http://${nodeIP}:30888 \| grep CREDS
 

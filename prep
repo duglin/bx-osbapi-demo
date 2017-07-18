@@ -29,6 +29,18 @@ doit bx cs workers ${CLUSTER}
 comment Waiting for cluster to provision...
 wait "bx cs workers ${CLUSTER} | grep -e normal -e deployed -e bootstrapping"
 
+doit --ignorerc bx cs cluster-config ${CLUSTER}
+config=$(grep export out) || true
+if [[ "$config" == "" ]]; then
+	config="export KUBECONFIG=$HOME/.bluemix/plugins/container-service/clusters/${CLUSTER}/kube-config-hou02-${CLUSTER}.yml"
+fi
+echo "$config" > config
+eval $config
+
+doit kubectl get nodes
+nodeIP=$(cat out | grep Ready | sed "s/ .*//")
+echo $nodeIP > nodeip
+
 doit bx cr namespace-add ${CRNS}   # --usesaved
 
 rm -f out cmds

@@ -2,8 +2,6 @@
 
 set -x
 
-export KUBECONFIG=/root/.bluemix/plugins/container-service/clusters/bx-osbapi-demo/kube-config-prod-dal10-bx-osbapi-demo.yml
-
 # Docker
 export DOCKER_CERT_PATH=/root/.ice/certs/containers-api.ng.bluemix.net/be715851-daed-4483-97a3-632ce6f2dded
 export DOCKER_HOST=tcp://containers-api.ng.bluemix.net:8443
@@ -25,6 +23,9 @@ bx app delete -f svcdemo
 bx cf delete-route -f -n svcdemo mybluemix.net
 
 # Kube
+eval $(cat config)
+# export KUBECONFIG=/root/.bluemix/plugins/container-service/clusters/bx-osbapi-demo/kube-config-prod-dal10-bx-osbapi-demo.yml
+
 kubectl delete -f svcdemo.yaml
 kubectl delete secret binding-cloudant
 

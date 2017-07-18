@@ -83,7 +83,7 @@ function doit() {
 	local noexec=""
 	local fakeit=${useSaved:-}
 	local noscroll=${NOSCROLL:-}
-	local grep=""
+	local postcmd=""
 
 	while [[ "$1" == "--"* ]]; do
 		opt="$1"
@@ -96,7 +96,7 @@ function doit() {
 			--usesaved   ) fakeit="1"     ;;
 			--noscroll   ) noscroll="1"   ;;
 			--scroll     ) noscroll=""    ;;
-			--grep*      ) grep="grep ${opt#*=}" ;;
+			--post*      ) postcmd="${opt#*=}" ;;
 		esac
 	done
 
@@ -115,8 +115,8 @@ function doit() {
 	if [[ "$skip" != "" || "$noscroll" != "" ]]; then
 		moreCMD="cat"
 	fi
-	if [[ "$grep" != "" ]]; then
-		moreCMD="$grep | $moreCMD"
+	if [[ "$postcmd" != "" ]]; then
+		moreCMD="$postcmd | $moreCMD"
 	fi
 
 	# Unless we're told to not execute it, do it
@@ -307,9 +307,13 @@ function scroll() {
 	let lines=lines-3
 
 	echo -n $bold"$"$normal" "
-	set +e
+	# set +e
 	pause
-	slowType more $*
+	if [[ "$skip" == "" ]]; then
+	  slowType more $*
+	else
+	  slowType cat $*
+	fi
 	pause
 	echo
 	if [[ "$skip" == "" ]]; then
